@@ -24,7 +24,8 @@ import {
   Search,
   FileText,
   HelpCircle,
-  CheckCircle
+  CheckCircle,
+  Ticket
 } from 'lucide-react';
 import api from '../../services/api';
 import Navbar from '../../components/common/Navbar';
@@ -84,10 +85,12 @@ export default function RegistrationPage() {
   const [submitError, setSubmitError] = useState(null);
   const [confirmedRegistration, setConfirmedRegistration] = useState(null);
 
-  // Registered Team Pass Lookup States (When Registration is Closed)
-  const [lookupId, setLookupId] = useState('');
+  // Registered Team Pass Lookup States (Supports ID or Email)
+  const [lookupQuery, setLookupQuery] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError] = useState(null);
+  const [lookupError, setLookupError] = useState(null); // { title: string, message: string }
+  const [lookupFieldError, setLookupFieldError] = useState(null);
+  const [multipleTeams, setMultipleTeams] = useState(null);
 
   // Announcement Modal & Flash Banner States (Session-Based)
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -138,29 +141,85 @@ export default function RegistrationPage() {
     }
   };
 
-  // Lookup existing team registration pass
+  // Lookup existing team registration pass using Registration ID or Team Leader Email
   const handleLookupRegistration = async (e) => {
     e?.preventDefault();
-    const cleanId = lookupId.trim().toUpperCase();
-    if (!cleanId) {
-      setLookupError('Please enter your Registration ID (e.g. GFG-2026-ABCDEF).');
+    const query = lookupQuery.trim();
+
+    // Validation — Required Field
+    if (!query) {
+      setLookupFieldError('Please enter your Registration ID or Leader Email.');
+      setLookupError({
+        title: 'Please Complete All Required Fields',
+        message: 'Enter your Registration ID or team leader email to continue.'
+      });
       return;
     }
+
+    const isEmail = query.includes('@');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (isEmail && !emailRegex.test(query)) {
+      setLookupFieldError('Please enter a valid email address.');
+      setLookupError({
+        title: 'Please Complete All Required Fields',
+        message: 'Please enter a valid team leader email address to continue.'
+      });
+      return;
+    }
+
     setLookupLoading(true);
     setLookupError(null);
+    setLookupFieldError(null);
+    setMultipleTeams(null);
+
     try {
-      const res = await api.get(`/registration/${encodeURIComponent(cleanId)}`);
-      if (res.data?.success && res.data?.data) {
-        setConfirmedRegistration(res.data.data);
-        window.scrollTo({ top: 80, behavior: 'smooth' });
-      } else {
-        setLookupError('No team entry found matching this ID. Please check your Registration ID.');
+      // Send either leaderEmail or registrationId based on input detection
+      const payload = isEmail
+        ? { leaderEmail: query.toLowerCase() }
+        : { registrationId: query.toUpperCase() };
+
+      const res = await api.post('/registration/retrieve-pass', payload);
+
+      if (res.data?.success) {
+        if (res.data.multiple && Array.isArray(res.data.data) && res.data.data.length > 1) {
+          // Multiple teams found for this leader email
+          setMultipleTeams(res.data.data);
+          const el = document.getElementById('team-selection-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        } else if (res.data.data) {
+          // Single team pass found
+          const teamRecord = Array.isArray(res.data.data) ? res.data.data[0] : res.data.data;
+          setConfirmedRegistration(teamRecord);
+          window.scrollTo({ top: 80, behavior: 'smooth' });
+        } else {
+          setLookupError({
+            title: 'Unable to Verify Registration',
+            message: "We couldn't verify your registration with the details provided. Check your Registration Pass ID or registered email address, then try again."
+          });
+        }
       }
     } catch (err) {
-      setLookupError(
-        err.response?.data?.message ||
-        'Registration record not found. Please verify your Registration ID or contact the campus body coordinators.'
-      );
+      const status = err.response?.status;
+      if (status === 400 || status === 404) {
+        setLookupError({
+          title: err.response?.data?.title || 'Unable to Verify Registration',
+          message: err.response?.data?.message || "We couldn't verify your registration with the details provided. Check your Registration Pass ID or registered email address, then try again."
+        });
+      } else if (status === 429) {
+        setLookupError({
+          title: 'Too Many Attempts',
+          message: err.response?.data?.message || 'Too many retrieval attempts from this network. Please wait a few minutes before trying again.'
+        });
+      } else {
+        // 5xx / Network Error: preserve entered values and allow retry
+        setLookupError({
+          title: 'Something Went Wrong',
+          message: "We couldn't verify your registration right now. Please check your internet connection and try again."
+        });
+      }
     } finally {
       setLookupLoading(false);
     }
@@ -512,6 +571,11 @@ export default function RegistrationPage() {
     setCurrentStep(1);
     setErrors({});
     setSubmitError(null);
+    setLookupQuery('');
+    setLookupLoading(false);
+    setLookupError(null);
+    setLookupFieldError(null);
+    setMultipleTeams(null);
     setFormData({
       teamName: '',
       teamSize: '',
@@ -533,25 +597,31 @@ export default function RegistrationPage() {
   return (
     <div className="min-h-screen bg-[#0B100E] text-[#F5F7F5] flex flex-col relative selection:bg-[#22A447]/30 selection:text-white w-full max-w-full overflow-x-clip">
       {/* Universal Website Navbar */}
-      <Navbar />
+      <div className="print:hidden">
+        <Navbar />
+      </div>
 
       {/* Sticky Flash Banner (Shown when modal is dismissed unless banner is dismissed) */}
-      <RegistrationFlashBanner
-        isVisible={showFlashBanner}
-        onDismiss={handleDismissFlashBanner}
-        onRegisterClick={scrollToOverviewOrForm}
-      />
+      <div className="print:hidden">
+        <RegistrationFlashBanner
+          isVisible={showFlashBanner}
+          onDismiss={handleDismissFlashBanner}
+          onRegisterClick={scrollToOverviewOrForm}
+        />
+      </div>
 
       {/* Announcement Popup Modal */}
-      <RegistrationAnnouncementModal
-        isOpen={showAnnouncementModal}
-        onClose={handleCloseAnnouncementModal}
-        onRegisterCTA={handleModalRegisterCTA}
-        onExploreDetails={handleModalExploreDetails}
-      />
+      <div className="print:hidden">
+        <RegistrationAnnouncementModal
+          isOpen={showAnnouncementModal}
+          onClose={handleCloseAnnouncementModal}
+          onRegisterCTA={handleModalRegisterCTA}
+          onExploreDetails={handleModalExploreDetails}
+        />
+      </div>
 
       {/* Subtle Ambient Lighting - strictly clipped to screen width to prevent mobile scaling issues */}
-      <div className="absolute top-0 left-0 right-0 h-[360px] overflow-hidden pointer-events-none z-0">
+      <div className="absolute top-0 left-0 right-0 h-[360px] overflow-hidden pointer-events-none z-0 print:hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] max-w-[100vw] h-[320px] bg-gradient-to-b from-[#22A447]/5 via-transparent to-transparent blur-3xl"></div>
       </div>
 
@@ -641,6 +711,172 @@ export default function RegistrationPage() {
               </div>
             </header>
 
+            {/* ─── COMPACT REGISTRATION PASS RETRIEVAL CARD / TEAM SELECTION ─── */}
+            {multipleTeams && multipleTeams.length > 1 ? (
+              /* Multiple Teams Selection Screen */
+              <div id="team-selection-section" className="rounded-2xl bg-[#121916] border border-[#28342D] p-4 sm:p-6 space-y-4 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#28342D] pb-3.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#22A447]/15 border border-[#22A447]/30 text-[#22A447] text-xs font-mono font-bold uppercase tracking-wider">
+                        {multipleTeams.length} Teams Registered
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-[#F5F7F5] mt-1 tracking-tight">
+                      Select Your Team Pass
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#A2ADA6] mt-0.5">
+                      Multiple team entries were found for this email. Choose a team to view, print, or download its official confirmation pass:
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMultipleTeams(null)}
+                    className="self-start sm:self-center px-3.5 py-1.5 rounded-lg bg-[#171F1B] hover:bg-[#28342D] border border-[#28342D] text-xs text-[#A2ADA6] hover:text-white transition-colors cursor-pointer"
+                  >
+                    ← Search Again
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {multipleTeams.map((team) => (
+                    <button
+                      key={team.registrationId || team._id}
+                      type="button"
+                      onClick={() => {
+                        setConfirmedRegistration(team);
+                        setMultipleTeams(null);
+                        window.scrollTo({ top: 80, behavior: 'smooth' });
+                      }}
+                      className="w-full text-left p-3.5 sm:p-4 rounded-xl bg-[#171F1B] hover:bg-[#1E2924] border border-[#28342D] hover:border-[#22A447]/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group cursor-pointer shadow-sm"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-sm sm:text-base text-[#F5F7F5] group-hover:text-[#22A447] transition-colors truncate">
+                            {team.teamName}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-[#121916] border border-[#28342D] font-mono text-xs font-bold text-[#22A447]">
+                            {team.registrationId}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-[#707E75]">
+                          <span>Track: <strong className="text-[#A2ADA6]">{team.category}</strong></span>
+                          <span>•</span>
+                          <span>Size: <strong className="text-[#A2ADA6]">{team.teamSize} Members</strong></span>
+                          {team.facultyMentor && (
+                            <>
+                              <span>•</span>
+                              <span>Mentor: <strong className="text-[#A2ADA6]">{team.facultyMentor}</strong></span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#22A447] group-hover:translate-x-1 transition-transform self-end sm:self-center flex-shrink-0">
+                        <span>View Pass</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Compact Pass Retrieval Card */
+              <div className="rounded-2xl bg-[#121916] border border-[#28342D] hover:border-[#22A447]/40 p-4 sm:p-6 shadow-xl relative overflow-hidden transition-all">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#22A447]/5 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#22A447]/15 border border-[#22A447]/30 flex items-center justify-center text-[#22A447] flex-shrink-0 mt-0.5">
+                    <Ticket className="w-5 h-5 text-[#22A447]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-bold text-[#F5F7F5] tracking-tight">
+                        Already Registered?
+                      </h2>
+                      <span className="text-xs sm:text-sm font-semibold text-[#22A447]">
+                        Retrieve your confirmation pass
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#A2ADA6] mt-0.5 leading-relaxed">
+                      Enter your Registration Pass ID or team leader email to access your official pass.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleLookupRegistration} className="mt-4 space-y-3">
+                  <div className="space-y-1.5">
+                    <label htmlFor="pass-lookup-input" className="block text-xs font-semibold text-[#A2ADA6]">
+                      Registration ID or Leader Email
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+                      <div className="relative flex-1 min-w-0">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#707E75]">
+                          <Search className="w-4 h-4" />
+                        </div>
+                        <input
+                          id="pass-lookup-input"
+                          type="text"
+                          value={lookupQuery}
+                          onChange={(e) => {
+                            setLookupQuery(e.target.value);
+                            if (lookupError) setLookupError(null);
+                            if (lookupFieldError) setLookupFieldError(null);
+                          }}
+                          placeholder="Enter registration ID or email address"
+                          className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171F1B] border ${
+                            lookupFieldError ? 'border-rose-500/70 focus:border-rose-500' : 'border-[#28342D] focus:border-[#22A447]'
+                          } text-xs sm:text-sm text-[#F5F7F5] placeholder-[#5C6A62] focus:outline-none focus:ring-1 ${
+                            lookupFieldError ? 'focus:ring-rose-500' : 'focus:ring-[#22A447]'
+                          } font-mono tracking-wide transition-colors`}
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={lookupLoading}
+                        className="py-2.5 px-6 rounded-xl bg-[#22A447] hover:bg-[#1e913e] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all flex-shrink-0 cursor-pointer active:scale-95"
+                      >
+                        {lookupLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Verifying your registration…</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Retrieve My Pass</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {lookupFieldError && (
+                      <p className="text-[11px] text-rose-400 pl-1 font-medium">
+                        {lookupFieldError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#707E75] pt-0.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#22A447] flex-shrink-0" />
+                    <span>Secure verification of your registration</span>
+                  </div>
+
+                  {lookupError && (
+                    <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/40 text-rose-300 text-xs space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-rose-200 text-xs sm:text-sm">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                        <span>{lookupError.title}</span>
+                      </div>
+                      <p className="text-xs text-rose-300/90 pl-6 leading-relaxed">
+                        {lookupError.message}
+                      </p>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+
             {isRegistrationClosed ? (
               /* ─── REGISTRATION CLOSED INTERFACE & PASS RETRIEVAL ─────────── */
               <div id="registration-closed-section" className="space-y-6 sm:space-y-8 w-full min-w-0">
@@ -712,68 +948,7 @@ export default function RegistrationPage() {
                   </div>
                 </div>
 
-                {/* 2. Registered Team Pass Verification & Lookup */}
-                <div className="rounded-2xl bg-[#121916] border border-[#28342D] p-5 sm:p-8 space-y-4 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#22A447]/15 border border-[#22A447]/30 flex items-center justify-center text-[#22A447] flex-shrink-0">
-                      <FileText className="w-5 h-5 text-[#22A447]" />
-                    </div>
-                    <div>
-                      <h3 className="text-base sm:text-lg font-bold text-[#F5F7F5]">
-                        Already Registered? View Your Confirmation Pass
-                      </h3>
-                      <p className="text-xs sm:text-sm text-[#A2ADA6]">
-                        Enter your official Registration ID to view, verify, or download your team entry pass.
-                      </p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleLookupRegistration} className="pt-2 space-y-3">
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <div className="relative flex-1">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#707E75]">
-                          <Search className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="text"
-                          value={lookupId}
-                          onChange={(e) => {
-                            setLookupId(e.target.value);
-                            if (lookupError) setLookupError(null);
-                          }}
-                          placeholder="Enter Registration ID (e.g. GFG-2026-ABCDEF)"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171F1B] border border-[#28342D] text-sm text-[#F5F7F5] placeholder-[#5C6A62] focus:outline-none focus:border-[#22A447] focus:ring-1 focus:ring-[#22A447] uppercase font-mono tracking-wider transition-colors"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={lookupLoading || !lookupId.trim()}
-                        className="py-2.5 px-6 rounded-xl bg-[#22A447] hover:bg-[#1e913e] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all flex-shrink-0"
-                      >
-                        {lookupLoading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Verifying...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Retrieve Pass</span>
-                            <ArrowRight className="w-4 h-4" />
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {lookupError && (
-                      <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
-                        <span>{lookupError}</span>
-                      </div>
-                    )}
-                  </form>
-                </div>
-
-                {/* 3. Event Help & Community Callouts */}
+                {/* 2. Event Help & Community Callouts */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-5 rounded-2xl bg-[#121916] border border-[#28342D] space-y-3">
                     <div className="flex items-center gap-2 text-white font-bold text-sm">
@@ -783,13 +958,15 @@ export default function RegistrationPage() {
                     <p className="text-xs text-[#A2ADA6] leading-relaxed">
                       If you need to make corrections to your registered team or faculty mentor details, please reach out to the campus body coordinators.
                     </p>
-                    <a
-                      href="mailto:gfg.chapter@jamiahamdard.ac.in"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#22A447] hover:underline"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>gfg.chapter@jamiahamdard.ac.in</span>
-                    </a>
+                    <div className="pt-1">
+                      <a
+                        href="mailto:gfgstudentbody.jh@gmail.com"
+                        className="inline-flex items-center gap-2 text-xs font-semibold text-[#22A447] hover:underline"
+                      >
+                        <Mail className="w-3.5 h-3.5 flex-shrink-0 text-[#22A447]" />
+                        <span>gfgstudentbody.jh@gmail.com</span>
+                      </a>
+                    </div>
                   </div>
 
                   <div className="p-5 rounded-2xl bg-[#121916] border border-[#28342D] space-y-3 flex flex-col justify-between">
@@ -1449,7 +1626,9 @@ export default function RegistrationPage() {
   </main>
 
       {/* Universal Website Footer */}
-      <Footer />
+      <div className="print:hidden">
+        <Footer />
+      </div>
     </div>
   );
 }

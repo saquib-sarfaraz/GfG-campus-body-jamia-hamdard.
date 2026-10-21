@@ -254,3 +254,85 @@ body {
     animation: none !important;
   }
 }
+
+/* ─── Dedicated Print Stylesheet for Registration Pass ──────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  /* Force exact background colors, borders, and typography to print in all browsers */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Reset document background & layout flow to avoid multi-page spill */
+  html,
+  body {
+    background-color: #0B100E !important;
+    background-image: none !important;
+    color: #F5F7F5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Universal print hide for surrounding website components */
+  nav,
+  footer,
+  header,
+  aside,
+  .print\:hidden,
+  .no-print,
+  #event-overview-header,
+  #registration-closed-section,
+  #registration-form-section,
+  .marquee-container,
+  button,
+  .flash-banner,
+  .announcement-modal {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+  }
+
+  .printable-pass-wrapper {
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+  }
+
+  #registration-pass-card {
+    display: block !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background-color: #121916 !important;
+    border: 1px solid #28342D !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #registration-pass-card * {
+    text-shadow: none !important;
+  }
+}
