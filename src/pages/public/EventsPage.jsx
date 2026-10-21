@@ -107,25 +107,25 @@ export default function EventsPage() {
         </TechHeader>
 
         {/* Dedicated Team Registration Callout Banner */}
-        <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-[#2f9e44]/40 bg-gradient-to-r from-[#121721] via-[#0a0d12] to-[#142e16]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-[#121721] via-[#0a0d12] to-[#1e1910]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-[#2f9e44]/15 border border-[#2f9e44]/30 flex items-center justify-center text-[#2f9e44] flex-shrink-0 shadow-sm">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0 shadow-sm">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-tight">THINKTANK IDEATHON 2026</span>
                 <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 font-bold">5G USE CASE LAB</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#2f9e44] text-white font-bold">REGISTRATION OPEN</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">REGISTRATION CLOSED</span>
               </div>
-              <p className="text-[11px] text-gray-300 mt-0.5">IDEAS × INNOVATION × IMPACT — Explore practical ideas and turn concepts into real-world 5G use cases.</p>
+              <p className="text-[11px] text-gray-300 mt-0.5">IDEAS × INNOVATION × IMPACT — Registrations have concluded. Shortlisted teams will be announced soon.</p>
             </div>
           </div>
           <Link
             to="/registration"
-            className="px-5 py-2.5 rounded-xl gradient-button text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] transition-transform whitespace-nowrap flex-shrink-0"
+            className="px-5 py-2.5 rounded-xl bg-[#171F1B] hover:bg-[#28342D] border border-[#28342D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] transition-transform whitespace-nowrap flex-shrink-0"
           >
-            Register Your Team <ArrowRight className="w-4 h-4" />
+            View Event Overview <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 

@@ -426,20 +426,20 @@ export default function Home() {
                 </Link>
                 <Link
                   to="/registration"
-                  className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-[#142617] border border-[#2f9e44]/80 hover:border-[#2f9e44] hover:bg-[#1a3821] text-white flex items-center justify-center gap-3 shadow-lg shadow-[#2f9e44]/20 hover:scale-[1.02] active:scale-[0.98] transition-all group"
+                  className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-[#171F1B] border border-[#28342D] hover:border-amber-500/50 hover:bg-[#1C2621] text-white flex items-center justify-center gap-3 shadow-lg shadow-black/40 hover:scale-[1.02] active:scale-[0.98] transition-all group"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#22A447]/20 border border-[#22A447]/40 flex items-center justify-center text-[#22A447] flex-shrink-0 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-4 h-4 text-[#22A447] group-hover:rotate-12 transition-transform" />
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
                   </div>
                   <div className="text-left flex flex-col justify-center">
                     <div className="flex items-center gap-1.5 font-bold text-sm sm:text-base leading-tight">
-                      <span>Register Now</span>
-                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-[#22A447] text-white">
-                        Live
+                      <span>Ideathon 2026</span>
+                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        Closed
                       </span>
                     </div>
                     <span className="text-[11px] text-[#A2ADA6] font-medium leading-tight mt-0.5 group-hover:text-white transition-colors">
-                      THINKTANK Ideathon 2026
+                      Registrations Closed • View Details
                     </span>
                   </div>
                 </Link>

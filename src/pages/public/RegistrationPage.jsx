@@ -20,7 +20,11 @@ import {
   Phone,
   Building2,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Search,
+  FileText,
+  HelpCircle,
+  CheckCircle
 } from 'lucide-react';
 import api from '../../services/api';
 import Navbar from '../../components/common/Navbar';
@@ -64,31 +68,36 @@ const DEPARTMENT_SUGGESTIONS = [
 ];
 
 export default function RegistrationPage() {
+  // Registration Status Control
+  const isRegistrationClosed = true;
+
   // Page Title for SEO
   useEffect(() => {
-    document.title = 'THINKTANK Ideathon 2026 Registration | GFG Campus Body • Jamia Hamdard';
+    document.title = isRegistrationClosed
+      ? 'THINKTANK Ideathon 2026 | Registration Closed | GFG Campus Body • Jamia Hamdard'
+      : 'THINKTANK Ideathon 2026 Registration | GFG Campus Body • Jamia Hamdard';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [isRegistrationClosed]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [confirmedRegistration, setConfirmedRegistration] = useState(null);
 
+  // Registered Team Pass Lookup States (When Registration is Closed)
+  const [lookupId, setLookupId] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState(null);
+
   // Announcement Modal & Flash Banner States (Session-Based)
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showFlashBanner, setShowFlashBanner] = useState(false);
 
   useEffect(() => {
-    const modalDismissed = sessionStorage.getItem('ideathon_announcement_modal_dismissed') === 'true';
     const bannerDismissed = sessionStorage.getItem('ideathon_flash_banner_dismissed') === 'true';
 
-    if (!modalDismissed) {
-      const timer = setTimeout(() => {
-        setShowAnnouncementModal(true);
-      }, 350);
-      return () => clearTimeout(timer);
-    } else if (!bannerDismissed) {
+    // When registration is closed, flash banner informs user gently without blocking popup
+    if (!bannerDismissed) {
       setShowFlashBanner(true);
     }
   }, []);
@@ -105,20 +114,12 @@ export default function RegistrationPage() {
   const handleModalRegisterCTA = () => {
     setShowAnnouncementModal(false);
     sessionStorage.setItem('ideathon_announcement_modal_dismissed', 'true');
-    const bannerDismissed = sessionStorage.getItem('ideathon_flash_banner_dismissed') === 'true';
-    if (!bannerDismissed) {
-      setShowFlashBanner(true);
-    }
-    scrollToForm();
+    scrollToOverviewOrForm();
   };
 
   const handleModalExploreDetails = () => {
     setShowAnnouncementModal(false);
     sessionStorage.setItem('ideathon_announcement_modal_dismissed', 'true');
-    const bannerDismissed = sessionStorage.getItem('ideathon_flash_banner_dismissed') === 'true';
-    if (!bannerDismissed) {
-      setShowFlashBanner(true);
-    }
     scrollToEventOverview();
   };
 
@@ -127,12 +128,41 @@ export default function RegistrationPage() {
     sessionStorage.setItem('ideathon_flash_banner_dismissed', 'true');
   };
 
-  const scrollToForm = () => {
-    const el = document.getElementById('registration-form-section');
+  const scrollToOverviewOrForm = () => {
+    const targetId = isRegistrationClosed ? 'registration-closed-section' : 'registration-form-section';
+    const el = document.getElementById(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      window.scrollTo({ top: 400, behavior: 'smooth' });
+      window.scrollTo({ top: 380, behavior: 'smooth' });
+    }
+  };
+
+  // Lookup existing team registration pass
+  const handleLookupRegistration = async (e) => {
+    e?.preventDefault();
+    const cleanId = lookupId.trim().toUpperCase();
+    if (!cleanId) {
+      setLookupError('Please enter your Registration ID (e.g. GFG-2026-ABCDEF).');
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError(null);
+    try {
+      const res = await api.get(`/registration/${encodeURIComponent(cleanId)}`);
+      if (res.data?.success && res.data?.data) {
+        setConfirmedRegistration(res.data.data);
+        window.scrollTo({ top: 80, behavior: 'smooth' });
+      } else {
+        setLookupError('No team entry found matching this ID. Please check your Registration ID.');
+      }
+    } catch (err) {
+      setLookupError(
+        err.response?.data?.message ||
+        'Registration record not found. Please verify your Registration ID or contact the campus body coordinators.'
+      );
+    } finally {
+      setLookupLoading(false);
     }
   };
 
@@ -509,7 +539,7 @@ export default function RegistrationPage() {
       <RegistrationFlashBanner
         isVisible={showFlashBanner}
         onDismiss={handleDismissFlashBanner}
-        onRegisterClick={scrollToForm}
+        onRegisterClick={scrollToOverviewOrForm}
       />
 
       {/* Announcement Popup Modal */}
@@ -547,6 +577,11 @@ export default function RegistrationPage() {
                     <span className="px-2 py-0.5 rounded bg-[#171F1B] border border-[#28342D] text-[#A2ADA6] text-[11px] font-medium">
                       Under 5G Use Case Lab
                     </span>
+                    {isRegistrationClosed && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-wider">
+                        Registration Closed
+                      </span>
+                    )}
                   </div>
 
                   {/* Primary Heading */}
@@ -606,8 +641,189 @@ export default function RegistrationPage() {
               </div>
             </header>
 
-            {/* ─── 2. PROGRESS STEPPER ────────────────────────────────── */}
-            {/* Desktop Stepper */}
+            {isRegistrationClosed ? (
+              /* ─── REGISTRATION CLOSED INTERFACE & PASS RETRIEVAL ─────────── */
+              <div id="registration-closed-section" className="space-y-6 sm:space-y-8 w-full min-w-0">
+                {/* 1. Official Closed Notice Card */}
+                <div className="rounded-2xl bg-[#121916] border border-amber-500/30 p-5 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0 shadow-inner">
+                      <Lock className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold uppercase tracking-wider">
+                          Official Notice
+                        </span>
+                        <span className="text-xs text-[#707E75]">•</span>
+                        <span className="text-xs text-[#A2ADA6]">THINKTANK IDEATHON 2026</span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-extrabold text-[#F5F7F5] tracking-tight">
+                        Online Registrations Are Officially Closed
+                      </h2>
+                      <p className="text-sm text-[#A2ADA6] leading-relaxed">
+                        The registration portal for <strong className="text-white font-semibold">THINKTANK IDEATHON 2026</strong> under the 5G Use Case Lab has concluded. Thank you to all the student teams from Jamia Hamdard and participating institutions for your overwhelming interest and innovative submissions!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3 Step Timeline of Event Stages */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[#28342D]">
+                    <div className="p-3.5 rounded-xl bg-[#171F1B] border border-[#28342D] space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#707E75] font-mono">Stage 01</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#28342D] text-[#A2ADA6] font-semibold">
+                          Concluded
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-[#F5F7F5]">Team Registration</div>
+                      <p className="text-[11px] text-[#A2ADA6] leading-normal">
+                        Team submissions & faculty mentor assignments.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[#171F1B] border border-amber-500/40 space-y-1 shadow-sm">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-400 font-mono">Stage 02</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold animate-pulse">
+                          In Progress
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-white">Idea Shortlisting</div>
+                      <p className="text-[11px] text-[#A2ADA6] leading-normal">
+                        Faculty review & technical evaluation of 5G use cases.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[#171F1B] border border-[#28342D] space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#707E75] font-mono">Stage 03</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#28342D] text-[#A2ADA6] font-semibold">
+                          Upcoming
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-[#F5F7F5]">Offline Presentation</div>
+                      <p className="text-[11px] text-[#A2ADA6] leading-normal">
+                        Final prototype & idea pitch at 5G Use Case Lab.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Registered Team Pass Verification & Lookup */}
+                <div className="rounded-2xl bg-[#121916] border border-[#28342D] p-5 sm:p-8 space-y-4 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#22A447]/15 border border-[#22A447]/30 flex items-center justify-center text-[#22A447] flex-shrink-0">
+                      <FileText className="w-5 h-5 text-[#22A447]" />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-[#F5F7F5]">
+                        Already Registered? View Your Confirmation Pass
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#A2ADA6]">
+                        Enter your official Registration ID to view, verify, or download your team entry pass.
+                      </p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleLookupRegistration} className="pt-2 space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#707E75]">
+                          <Search className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={lookupId}
+                          onChange={(e) => {
+                            setLookupId(e.target.value);
+                            if (lookupError) setLookupError(null);
+                          }}
+                          placeholder="Enter Registration ID (e.g. GFG-2026-ABCDEF)"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171F1B] border border-[#28342D] text-sm text-[#F5F7F5] placeholder-[#5C6A62] focus:outline-none focus:border-[#22A447] focus:ring-1 focus:ring-[#22A447] uppercase font-mono tracking-wider transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={lookupLoading || !lookupId.trim()}
+                        className="py-2.5 px-6 rounded-xl bg-[#22A447] hover:bg-[#1e913e] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all flex-shrink-0"
+                      >
+                        {lookupLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Verifying...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Retrieve Pass</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {lookupError && (
+                      <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                        <span>{lookupError}</span>
+                      </div>
+                    )}
+                  </form>
+                </div>
+
+                {/* 3. Event Help & Community Callouts */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-5 rounded-2xl bg-[#121916] border border-[#28342D] space-y-3">
+                    <div className="flex items-center gap-2 text-white font-bold text-sm">
+                      <HelpCircle className="w-4 h-4 text-[#22A447]" />
+                      <span>Questions or Updates?</span>
+                    </div>
+                    <p className="text-xs text-[#A2ADA6] leading-relaxed">
+                      If you need to make corrections to your registered team or faculty mentor details, please reach out to the campus body coordinators.
+                    </p>
+                    <a
+                      href="mailto:gfg.chapter@jamiahamdard.ac.in"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#22A447] hover:underline"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>gfg.chapter@jamiahamdard.ac.in</span>
+                    </a>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-[#121916] border border-[#28342D] space-y-3 flex flex-col justify-between">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-white font-bold text-sm">
+                        <Sparkles className="w-4 h-4 text-[#22A447]" />
+                        <span>Discover More Opportunities</span>
+                      </div>
+                      <p className="text-xs text-[#A2ADA6] leading-relaxed">
+                        Stay active with upcoming coding contests, workshops, and tech communities on campus.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 pt-2">
+                      <Link
+                        to="/events"
+                        className="px-4 py-2 rounded-lg bg-[#171F1B] hover:bg-[#28342D] border border-[#28342D] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>All Events</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                      <Link
+                        to="/community"
+                        className="px-4 py-2 rounded-lg bg-[#171F1B] hover:bg-[#28342D] border border-[#28342D] text-[#A2ADA6] hover:text-white text-xs font-medium transition-colors"
+                      >
+                        Community Feed
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* ─── 2. PROGRESS STEPPER ────────────────────────────────── */}
+                {/* Desktop Stepper */}
             <nav aria-label="Registration Progress" className="hidden sm:block rounded-xl bg-[#121916] border border-[#28342D] p-2.5 shadow-sm">
               <div className="grid grid-cols-4 gap-2">
                 {STEPS.map((step) => {
@@ -1226,9 +1442,11 @@ export default function RegistrationPage() {
                 )}
               </AnimatePresence>
             </div>
-          </div>
+          </>
         )}
-      </main>
+      </div>
+    )}
+  </main>
 
       {/* Universal Website Footer */}
       <Footer />

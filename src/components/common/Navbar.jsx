@@ -64,7 +64,7 @@ export default function Navbar() {
 
   // Secondary links inside More dropdown
   const moreLinks = [
-    { name: 'Register for Ideathon', path: '/registration', desc: 'THINKTANK Ideathon 2026 entry', icon: Sparkles, badge: 'Live' },
+    { name: 'Ideathon 2026', path: '/registration', desc: 'THINKTANK Ideathon 2026', icon: Sparkles, badge: 'Closed' },
     { name: 'Announcements', path: '#announcements', desc: 'Latest bulletins & updates', icon: Bell, isModalTrigger: true },
     { name: 'Gallery', path: '/gallery', desc: 'Photo & video highlights', icon: ImageIcon },
     { name: 'Resources', path: '/resources', desc: 'Study notes & roadmaps', icon: BookOpen },
@@ -236,7 +236,11 @@ export default function Navbar() {
                           <div className="text-xs font-bold flex items-center gap-1.5">
                             {item.name}
                             {item.badge && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#2f9e44] text-white font-mono font-bold">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                                item.badge === 'Closed'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-[#2f9e44] text-white'
+                              }`}>
                                 {item.badge}
                               </span>
                             )}
